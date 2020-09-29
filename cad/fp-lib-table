@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name control)(type KiCad)(uri /home/alex/workspace/kicad/control.pretty)(options "")(descr ""))
+  (lib (name ukncbrd)(type KiCad)(uri ${KIPRJMOD}/ukncbrd.pretty)(options "")(descr ""))
+)

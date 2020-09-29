@@ -1,0 +1,88 @@
+
+(rules PCB control1
+  (snap_angle 
+    ninety_degree
+  )
+  (autoroute_settings
+    (fanout off)
+    (autoroute on)
+    (postroute on)
+    (vias on)
+    (via_costs 50)
+    (plane_via_costs 5)
+    (start_ripup_costs 100)
+    (start_pass_no 4519)
+    (layer_rule F.Cu
+      (active on)
+      (preferred_direction vertical)
+      (preferred_direction_trace_costs 1.0)
+      (against_preferred_direction_trace_costs 2.2)
+    )
+    (layer_rule B.Cu
+      (active on)
+      (preferred_direction horizontal)
+      (preferred_direction_trace_costs 1.0)
+      (against_preferred_direction_trace_costs 1.8)
+    )
+  )
+  (rule
+    (width 300.0)
+    (clear 300.2)
+    (clear 150.0 (type smd_to_turn_gap))
+    (clear 75.0 (type smd_smd))
+  )
+  (padstack "Via[0-1]_1200:600_um"
+    (shape
+      (circle F.Cu 1200.0 0.0 0.0)
+    )
+    (shape
+      (circle B.Cu 1200.0 0.0 0.0)
+    )
+    (attach off)
+  )
+  (via 
+    "Via[0-1]_1200:600_um" "Via[0-1]_1200:600_um" default
+  )
+  (via 
+    "Via[0-1]_1200:600_um-kicad_default" "Via[0-1]_1200:600_um" "kicad_default"
+  )
+  (via_rule
+    default "Via[0-1]_1200:600_um"
+  )
+  (via_rule
+    "kicad_default" "Via[0-1]_1200:600_um-kicad_default"
+  )
+  (class default
+    (clearance_class default)
+    (via_rule default)
+    (rule
+      (width 300.0)
+    )
+    (circuit 
+      (use_layer F.Cu B.Cu)
+    )
+  )
+  (class "kicad_default"
+    "Net-(C1-Pad1)" GND +5V "/SET_BTN" "/LEFT_BTN" "/RIGHT_BTN" /BAD15 /VA87DIR
+    /BAD5 /AD13 /BAD7 /AD1 /BAD9 /AD3 /BAD11 /AD11
+    /BAD3 /AD9 /BAD1 /AD7 /BAD13 /AD5 /AD15 /AD14
+    /AD12 /BAD4 /AD0 /BAD6 /AD2 /BAD8 /AD10 /BAD10
+    /AD8 /BAD2 /AD6 /BAD0 /AD4 /BAD12 /BAD14 "Net-(J1-PadA3)"
+    "Net-(J1-PadA4)" "Net-(J1-PadA5)" "Net-(J1-PadA6)" "Net-(J1-PadA7)" "Net-(J1-PadA8)" "Net-(J1-PadA9)" "Net-(J1-PadA10)" "Net-(J1-PadA11)"
+    "Net-(J1-PadA12)" "Net-(J1-PadA13)" /DIN /SYNC "Net-(J1-PadA23)" "Net-(J1-PadB14)" "Net-(J1-PadB13)" "Net-(J1-PadB4)"
+    "Net-(J1-PadB10)" "Net-(J1-PadB2)" "Net-(J1-PadB12)" /DOUT "Net-(J1-PadB11)" "Net-(J1-PadB7)" "Net-(J1-PadB5)" "Net-(J1-PadB6)"
+    /RPLY "Net-(J1-PadB9)" "/SPI2_CS" "/SPI2_MOSI" +3V3 "/SPI2_SCK" "/SPI2_MISO" "Net-(J2-Pad8)"
+    "Net-(J2-Pad9)" "Net-(J2-Pad10)" "Net-(J2-Pad11)" "/I2C_SCL" "/I2C_SDA" "/UART_RX" "/UART_TX" /SELECT1
+    /SELECT2 "Net-(U1-Pad17)" "Net-(U1-Pad18)" "Net-(U1-Pad19)" /#OE "Net-(U1-Pad11)" "Net-(U1-Pad12)" "Net-(U1-Pad13)"
+    "Net-(U2-Pad13)" "Net-(U2-Pad12)" "Net-(C7-Pad2)" "Net-(C8-Pad2)" "Net-(C9-Pad2)" "Net-(J2-Pad12)" "Net-(U3-Pad36)" "Net-(U3-Pad40)"
+    "Net-(U3-Pad44)" "Net-(U3-Pad41)"
+    (clearance_class "kicad_default")
+    (via_rule kicad_default)
+    (rule
+      (width 300.0)
+    )
+    (circuit 
+      (use_layer F.Cu B.Cu)
+    )
+  )
+)

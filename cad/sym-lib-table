@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name uknclbr)(type Legacy)(uri ${KIPRJMOD}/uknclbr.lib)(options "")(descr ""))
+  (lib (name control-rescue)(type Legacy)(uri ${KIPRJMOD}/control-rescue.lib)(options "")(descr ""))
+)
