@@ -29,3 +29,20 @@
 
 <B>Пример работы контроллера:</B></Br>
 [![Example video](https://img.youtube.com/vi/BQEt_0jdZwQ/0.jpg)](https://youtu.be/BQEt_0jdZwQ "Example video")
+</Br>
+<B>Сообществом были произведены следующие улучшения:</B></Br>
+Новая трассировка платы и гербер-файлы: Community/Gerber_new/</Br>
+<img src="Community/photo/photo_5327789880400529236_y.jpg" alt="внешний вид платы" width="300"/></Br>
+Стильный корпус со сменными передними накладками, там же несколько моделей в сборе на "покрутить": Community/Case/</Br>
+<img src="Community/photo/photo_5327789880400529243_x.jpg" alt="1" width="300"/></Br>
+<img src="Community/photo/photo_5327789880400529244_x.jpg" alt="1" width="300"/></Br>
+<img src="Community/photo/photo_5327789880400529245_x.jpg" alt="1" width="300"/></Br>
+<img src="Community/photo/photo_5327789880400529246_x.jpg" alt="1" width="300"/></Br>
+<img src="Community/photo/photo_5327789880400529247_x.jpg" alt="1" width="300"/></Br>
+Авторы модов:   @electroscatnes</Br>
+                Andrey Khristov</Br>
+Идейные вдохновители: Alexey Kisly
+                      @nzeemin
+и все участники канала: https://t.me/MC0511UKNC
+
+
