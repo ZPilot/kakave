@@ -31,7 +31,7 @@
 [![Example video](https://img.youtube.com/vi/BQEt_0jdZwQ/0.jpg)](https://youtu.be/BQEt_0jdZwQ "Example video")
 </Br>
 <B>Сообществом были произведены следующие улучшения:</B></Br>
-Новая трассировка платы и гербер-файлы: <a href="Community/Gerber_new/">Community/</a></Br>
+Новая трассировка платы и гербер-файлы: <a href="Community/">Community</a></Br>
 <img src="Community/photo/2.0_top.jpg" alt="внешний вид платы" width="300"/></Br>
 Стильный корпус со сменными передними накладками, там же несколько моделей в сборе</Br>
 <img src="Community/photo/001.jpg" alt="1" width="300"/></Br>
