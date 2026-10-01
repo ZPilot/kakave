@@ -18,7 +18,11 @@
 ~~Игры от ИТО: ITO90.dsk - все игры с этого диска, ITO91.dsk - не работает PacMan.~~ (v1.1.0)
 
 <B>Прошивка:</B></Br>
-Готовые файлы: firmware401/Release/f401test005.bin (stm32f401) и firmware/Release/f411test005.bin (stm32f411), записываются с адреса 0x08000000 (например, st-flash write f401test005.bin 0x08000000).</Br>
+Готовые файлы записываются с адреса 0x08000000 (например, st-flash write f401test005.bin 0x08000000). Какой выбрать - по надписи на микроконтроллере Blackpill (или по chip id, который показывает st-info --probe):</Br>
+- firmware401/Release/f401test005.bin - STM32F401CC (CCU6, chip id 0x423: 256 кБ flash, 64 кБ RAM). Работает и на STM32F401CE.</Br>
+- firmware401/Release/f401cetest005.bin - STM32F401CE (CEU6, chip id 0x433: 512 кБ flash, 96 кБ RAM). Та же прошивка, собранная под CE: использует всю его память. На F401CC не работает.</Br>
+- firmware/Release/f411test005.bin - STM32F411CE (CEU6, chip id 0x431). Для STM32F401 не подходит: работает на 100 МГц.</Br>
+Все три работают с олед-дисплеями 128x64 (I2C, адрес 0x3C) на контроллере SSD1306 и на CH1116 (SH1106-совместимом): тип контроллера определяется при включении.</Br>
 Сборка из командной строки: make (результат в build/), make release - собрать и положить в */Release/. Нужен arm-none-eabi-gcc в PATH или make TOOLCHAIN=&lt;каталог bin&gt;.</Br>
 Файлы в */Release/ собраны GNU Arm Embedded 7-2018-q2-update (GCC 7.3.1, тот же компилятор, что в STM32CubeIDE 1.4): с ним make даёт точно такие же файлы. Более новые GCC (проверено 13.2) тоже собирают, но код получается другим.</Br>
 

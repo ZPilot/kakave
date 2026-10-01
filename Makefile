@@ -2,10 +2,12 @@
 # firmware/ (STM32F411), with the same flags and link order as the
 # STM32CubeIDE 1.4 Release build that produced */Release/*.bin.
 #
-#   make            build/f401test005.{elf,bin} and build/f411test005.{elf,bin}
-#   make f401       only the STM32F401 one
-#   make f411       only the STM32F411 one
-#   make release    build both and copy them into firmware401/Release/ and
+#   make            all three below
+#   make f401       build/f401test005.{elf,bin}: STM32F401CC (256K flash, 64K RAM)
+#   make f401ce     build/f401cetest005.{elf,bin}: the same objects linked for
+#                   STM32F401CE (512K flash, 96K RAM), STM32F401CEUX_FLASH.ld
+#   make f411       build/f411test005.{elf,bin}: STM32F411CE
+#   make release    build them and copy them into firmware401/Release/ and
 #                   firmware/Release/
 #   make clean
 #
@@ -34,18 +36,22 @@ LDFLAGS = $(MCU) -T$(SRC_DIR)/$(LDSCRIPT) --specs=nosys.specs --specs=nano.specs
           -Wl,--gc-sections -Wl,-Map=$(OUT)/$(NAME).map -static \
           -Wl,--start-group -lc -lm -Wl,--end-group
 
-.PHONY: all f401 f411 release clean
-all: f401 f411
+.PHONY: all f401 f401ce f411 release clean
+all: f401 f401ce f411
 
 f401:
 	$(MAKE) -f Makefile build SRC_DIR=firmware401 NAME=f401test005 \
 	    LDSCRIPT=STM32F401CCUX_FLASH.ld CHIP=-DSTM32F401xC
+# the CMSIS headers for F401xC and F401xE differ only in FLASH_END, unused here
+f401ce:
+	$(MAKE) -f Makefile build SRC_DIR=firmware401 NAME=f401cetest005 \
+	    LDSCRIPT=STM32F401CEUX_FLASH.ld CHIP=-DSTM32F401xC
 f411:
 	$(MAKE) -f Makefile build SRC_DIR=firmware NAME=f411test005 \
 	    LDSCRIPT=STM32F411CEUX_FLASH.ld CHIP=-DSTM32F411xE
 
 release: all
-	cp $(OUT)/f401test005.bin $(OUT)/f401test005.elf firmware401/Release/
+	cp $(OUT)/f401test005.bin $(OUT)/f401test005.elf $(OUT)/f401cetest005.bin firmware401/Release/
 	cp $(OUT)/f411test005.bin firmware/Release/
 
 clean:
