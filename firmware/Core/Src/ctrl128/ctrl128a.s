@@ -264,6 +264,35 @@ testcmd_end_end:
 	bx lr
 .endm
 //----------------------------------------------
+//	DATIO_WAIT - after the DIN half of a cycle
+//
+// A read-modify-write instruction (BIC/BIS/INC/... on @#177130 or
+// @#177132) is one DATIO bus cycle: SYNC stays low, DIN is answered,
+// then DOUT follows under the same SYNC.  SEL1/SEL2 is a pulse made
+// at the start of SYNC (27C512 /OE from the 7400 and C1), so it does
+// not come again for the write half, and the handler used to return
+// after DIN - the DOUT got no RPLY and the PPU took a bus timeout
+// (trap 4).  Knight's PPU code does BIC #20,@#177130 to stop the motor.
+// So wait here, RPLY already released, until SYNC goes high (plain
+// DATI, the usual case, a few hundred ns) or DOUT goes low (DATIO,
+// go to the write half); the count only bounds a stuck bus.
+// r0 = GPIO_BASE, uses r2,r3.
+//----------------------------------------------
+.equ DATIO_TIMEOUT,	256		//~10 CPU cycles a pass at 100 MHz: ~25 us
+
+.macro DATIO_WAIT dout_label,end_label
+	ldr 	r2,=DATIO_TIMEOUT
+1:
+	READPORT_R0 r3,GPIOB
+	tst 	r3,#(SYNC)						//SYNC high: cycle over
+		bne 	\end_label
+	tst 	r3,#(DOUT)						//DOUT low under SYNC: write half
+		beq 	\dout_label
+	subs 	r2,#1
+		bne 	1b
+.endm
+
+//----------------------------------------------
 //		EXTI4_IRQHandler //RSN o177130
 //----------------------------------------------
 .section	.text.EXTI4_IRQHandler
@@ -295,7 +324,12 @@ irq4_rsn_din:
 			beq irq4_din_rsn_h_wait
 
 	SETPORT_R0 r3,GPIOA,MODER,MODER_I
-	ENDIRQSTATUS
+	SETGPIO_R0 r3,GPIOB,#(RPLY|VA87DIR)	//release RPLY|VA87DIR
+	DATIO_WAIT irq4_rsn_dout,irq4_din_end	//BIC/BIS/INC @#177130: DOUT under the same SYNC
+irq4_din_end:
+	RESETEXTI4
+	pop {r0-r3,lr}
+	bx lr
 //----------CMD-------------------------------
 irq4_rsn_dout:
 	RESETGPIO_R0 r3,GPIOB,#(RPLY)
@@ -371,8 +405,14 @@ irq95_rdn_din:								//uknc read data
 	and 	r3,#0							//Clear flag save mode
 	strb 	r3,[r1,#SAVEA]					//
 	ldrb 	r3,[r1,#READSDA]				//if set flag READSDA
-	cbnz 	r3,irq95_rdn_sd					//then goto read/write from sd
-	ENDIRQDATA								//EXTI,RPLY and VA87 to input
+	cmp 	r3,#0							//(cbnz no longer reaches)
+	bne 	irq95_rdn_sd					//then goto read/write from sd
+	SETGPIO_R0 	r3,GPIOB,#(RPLY|VA87DIR)	//release RPLY|VA87DIR
+	DATIO_WAIT irq95_rdn_dout,irq95_din_end	//read-modify-write of 177132
+irq95_din_end:
+	RESETEXTI5
+	pop {r0-r3,lr}
+	bx lr
 
 irq95_rdn_dout:								//uknc write data
 	RESETGPIO_R0 	r3,GPIOB,#(RPLY)
