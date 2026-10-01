@@ -9,18 +9,27 @@
  *
  *  - SSD1306: vertical addressing mode, and SSD1306_Buffer_all goes out to
  *    the display by one endless circular DMA.
- *  - CH1116 (SH1106 command set): 132 columns of RAM and page addressing
- *    only, so the endless DMA cannot work (the column pointer never moves on
- *    to the next page). Each page is sent as its own I2C transaction by a
- *    non-blocking state machine, one step per SysTick (1 ms, the lowest
- *    interrupt priority), so the picture also follows while the code waits
- *    (LL_mDelay, SD card loops). LL_mDelay() only polls COUNTFLAG, which the
- *    interrupt does not touch.
+ *  - SH1106 and CH1116 (the "CH1116" driver below): 132 columns of RAM and
+ *    page addressing only, so the endless DMA cannot work (the column pointer
+ *    never moves on to the next page). Each page is sent as its own I2C
+ *    transaction by a non-blocking state machine, one step per SysTick (1 ms,
+ *    the lowest interrupt priority), so the picture also follows while the
+ *    code waits (LL_mDelay, SD card loops). LL_mDelay() only polls COUNTFLAG,
+ *    which the interrupt does not touch.
  *
- * The SH1106 status byte is BUSY ON/OFF x x x 0 0 0. The SSD1306 has no
- * status read on I2C: it does not answer (read as 0xFF) or gives 0x06/0x03
- * in the low bits. So: low 3 bits all 0 - CH1116, anything else - SSD1306,
- * as before.
+ * Status bytes read from real modules (bit 6 = display off, so the first is
+ * at power-on, the second after a reset with the display on):
+ *
+ *   0.96" SSD1306   0x44 / 0x04   low nibble 4
+ *   1.3"  SH1106    0x48 / 0x28   low nibble 8   glass on RAM columns 2..129
+ *   1.54" CH1116    0x56 / 0x16   low nibble 6   glass on SEG0..SEG127
+ *
+ * So the low nibble picks the driver: 8 - page driver, picture at column 2
+ * (132 bytes a page); 6 - page driver, picture at column 0 (128 bytes);
+ * anything else (4; 3 on other SSD1306 modules; 0xFF if nothing answers the
+ * read, as the SSD1306 datasheet has no I2C status read) - the SSD1306
+ * driver, as before. Some SSD1306 modules are reported to give 6 as well:
+ * those get the page driver at column 0, which an SSD1306 also takes.
  */
 
 
@@ -194,9 +203,10 @@ static void ssd1306_init_ssd1306(void)
  * before it is sent. Between steps the I2C master holds SCL low. A page takes
  * ~8 SysTicks, a whole screen ~70 ms.
  *--------------------------------------------------------------------------*/
-/* The 128 visible columns sit in the middle of the 132-column RAM
- * (SEG2..SEG129); the other 4 columns are sent as 0. */
-#define CH1116_COL_OFFSET	2
+/* SH1106 modules: the 128 visible columns sit in the middle of the
+ * 132-column RAM (SEG2..SEG129), and all 132 columns are sent, the other 4 as
+ * 0. CH1116 modules: SEG0..SEG127, and only those 128 are sent (so an SSD1306,
+ * whose column pointer wraps at 127, takes it too). Set in SSD1306_Init(). */
 #define CH1116_RAM_WIDTH	132
 #define CH1116_HDR			7
 #define CH1116_TIMEOUT		(1u<<20)	/* wait units without progress before I2C reset */
@@ -205,6 +215,8 @@ static void ssd1306_init_ssd1306(void)
 enum { ST_IDLE, ST_SB, ST_ADDR, ST_DMA, ST_BTF, ST_STOP };
 
 static uint8_t ch1116_tx[CH1116_HDR + CH1116_RAM_WIDTH];
+static uint8_t ch1116_offset;		/* first RAM column of the picture: 2 or 0 */
+static uint8_t ch1116_width;		/* columns sent a page: 132 or 128 */
 static uint8_t ch1116_state;
 static uint8_t ch1116_page;
 static uint32_t ch1116_wait;
@@ -218,9 +230,9 @@ static void ch1116_fill_page(uint8_t page)
 	*d++ = 0x80; *d++ = 0x00;			/* column low nibble = 0 */
 	*d++ = 0x80; *d++ = 0x10;			/* column high nibble = 0 */
 	*d++ = 0x40;						/* data follows */
-	for (x = 0; x < CH1116_COL_OFFSET; x++) *d++ = 0;
+	for (x = 0; x < ch1116_offset; x++) *d++ = 0;
 	for (x = 0; x < SSD1306_WIDTH; x++) *d++ = SSD1306_Buffer_all[x * 8 + page];
-	for (x = CH1116_COL_OFFSET + SSD1306_WIDTH; x < CH1116_RAM_WIDTH; x++) *d++ = 0;
+	for (x = ch1116_offset + SSD1306_WIDTH; x < ch1116_width; x++) *d++ = 0;
 }
 
 static void ch1116_dma_off(void)
@@ -283,7 +295,7 @@ static uint32_t ch1116_poll(uint32_t wait)
 		if (!(sr1 & I2C_SR1_ADDR)) break;
 		(void) I2C1->SR2;				/* SR1 then SR2 clears ADDR */
 		ch1116_dma_off();
-		LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_6, sizeof(ch1116_tx));
+		LL_DMA_SetDataLength(DMA1, LL_DMA_STREAM_6, CH1116_HDR + ch1116_width);
 		LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_6, (uint32_t)ch1116_tx,
 				LL_I2C_DMA_GetRegAddr(I2C1), LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
 		LL_I2C_EnableDMAReq_TX(I2C1);
@@ -329,6 +341,8 @@ static void ssd1306_init_ch1116(void)
 	LL_DMA_SetMode(DMA1, LL_DMA_STREAM_6, LL_DMA_MODE_NORMAL);
 
 	SSD1306_WRITECOMMAND(0xAE); //display off
+	SSD1306_WRITECOMMAND(0x20); //SSD1306: page addressing mode, in case it was left in another
+	SSD1306_WRITECOMMAND(0x02); //  (SH1106/CH1116 have no 0x20; 0x02 = column low 2, reset per page)
 	SSD1306_WRITECOMMAND(0xD5); //display clock divide ratio/oscillator frequency
 	SSD1306_WRITECOMMAND(0x80);
 	SSD1306_WRITECOMMAND(0xA8); //multiplex ratio
@@ -387,7 +401,21 @@ void SSD1306_Init(void)
 	GPIOB->MODER=b_moder;
 
 	oled_status = ssd1306_I2C_ReadStatus(SSD1306_I2C_ADDR);
-	oled_ch1116 = (oled_status & 0x07) == 0;
+	switch (oled_status & 0x0F)
+	{
+	case 0x08:						//SH1106: picture at columns 2..129
+		oled_ch1116 = 1;
+		ch1116_offset = 2;
+		ch1116_width = CH1116_RAM_WIDTH;
+		break;
+	case 0x06:						//CH1116: picture at columns 0..127
+		oled_ch1116 = 1;
+		ch1116_offset = 0;
+		ch1116_width = SSD1306_WIDTH;
+		break;
+	default:						//SSD1306
+		oled_ch1116 = 0;
+	}
 	if (oled_ch1116) ssd1306_init_ch1116();
 	else ssd1306_init_ssd1306();
 }
