@@ -33,7 +33,6 @@ extern const uint8_t font_8x14[257][14];
 extern const uint8_t font_8x8[257][8];
 
 void SSD1306_Init(void);
-void SSD1306_Refresh(void);		/* call from the main loop */
 void fast_fill(uint8_t color);
 void fast_putpixel(uint8_t x,uint8_t y,uint8_t color);
 void fast_putc(uint8_t x,uint8_t y,uint8_t c,void *font);

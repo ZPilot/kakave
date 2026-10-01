@@ -219,7 +219,6 @@ volatile void ctrl128loop(void)
 
 	while(1)
 	{
-		SSD1306_Refresh();
 		if(*UPDATESD)*UPDATESD=0,updatesd();
 		if(*MOTOR&*SELDRV)
 		{

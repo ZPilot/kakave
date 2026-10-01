@@ -8,12 +8,14 @@
  * modules, and SSD1306_Init() tells them apart by the status byte:
  *
  *  - SSD1306: vertical addressing mode, and SSD1306_Buffer_all goes out to
- *    the display by one endless circular DMA. SSD1306_Refresh() does nothing.
+ *    the display by one endless circular DMA.
  *  - CH1116 (SH1106 command set): 132 columns of RAM and page addressing
  *    only, so the endless DMA cannot work (the column pointer never moves on
- *    to the next page). Each page is sent as its own I2C transaction by
- *    SSD1306_Refresh(), a non-blocking state machine called from the main
- *    loop.
+ *    to the next page). Each page is sent as its own I2C transaction by a
+ *    non-blocking state machine, one step per SysTick (1 ms, the lowest
+ *    interrupt priority), so the picture also follows while the code waits
+ *    (LL_mDelay, SD card loops). LL_mDelay() only polls COUNTFLAG, which the
+ *    interrupt does not touch.
  *
  * The SH1106 status byte is BUSY ON/OFF x x x 0 0 0. The SSD1306 has no
  * status read on I2C: it does not answer (read as 0xFF) or gives 0x06/0x03
@@ -189,16 +191,16 @@ static void ssd1306_init_ssd1306(void)
  * let the page/column commands and the data go out in one DMA transfer.
  * SSD1306_Buffer_all stays in SSD1306 vertical-mode order (byte x*8+page),
  * so the drawing code is the same; a page is gathered into ch1116_tx just
- * before it is sent. No interrupt is used: when the main loop is busy the
- * I2C master holds SCL low until the next call. One page is ~3 ms, a whole
- * screen ~25 ms.
+ * before it is sent. Between steps the I2C master holds SCL low. A page takes
+ * ~8 SysTicks, a whole screen ~70 ms.
  *--------------------------------------------------------------------------*/
 /* The 128 visible columns sit in the middle of the 132-column RAM
  * (SEG2..SEG129); the other 4 columns are sent as 0. */
 #define CH1116_COL_OFFSET	2
 #define CH1116_RAM_WIDTH	132
 #define CH1116_HDR			7
-#define CH1116_TIMEOUT		(1u<<20)	/* polls without progress before I2C reset */
+#define CH1116_TIMEOUT		(1u<<20)	/* wait units without progress before I2C reset */
+#define CH1116_TICK_WAIT	(CH1116_TIMEOUT / 1000)	/* one SysTick: the reset after ~1 s */
 
 enum { ST_IDLE, ST_SB, ST_ADDR, ST_DMA, ST_BTF, ST_STOP };
 
@@ -241,8 +243,10 @@ static void ch1116_i2c_reset(void)
 	LL_DMA_SetMode(DMA1, LL_DMA_STREAM_6, LL_DMA_MODE_NORMAL);
 }
 
-/* One step of the refresh. Returns 1 when page 7 has just been sent. */
-static uint32_t ch1116_poll(void)
+/* One step of the refresh. Returns 1 when page 7 has just been sent. `wait`
+ * is what a call without progress adds towards CH1116_TIMEOUT: 1 from the
+ * tight loop in init, CH1116_TICK_WAIT from SysTick. */
+static uint32_t ch1116_poll(uint32_t wait)
 {
 	uint32_t sr1 = I2C1->SR1;
 	uint32_t done = 0;
@@ -308,7 +312,7 @@ static uint32_t ch1116_poll(void)
 		return 0;
 	}
 
-	if (++ch1116_wait >= CH1116_TIMEOUT)
+	if ((ch1116_wait += wait) >= CH1116_TIMEOUT)
 	{
 		ch1116_i2c_reset();
 		ch1116_state = ST_IDLE;
@@ -355,17 +359,21 @@ static void ssd1306_init_ch1116(void)
 	ch1116_state = ST_STOP;			/* wait for the last command's STOP */
 	ch1116_page = 0;
 	ch1116_wait = 0;
-	for (n = 0; n < 8 * CH1116_TIMEOUT && !ch1116_poll(); n++) {};
+	for (n = 0; n < 8 * CH1116_TIMEOUT && !ch1116_poll(1); n++) {};
 
 	SSD1306_WRITECOMMAND(0xAF); //display on
 	ch1116_state = ST_STOP;
+
+	/* From here on the picture goes out from SysTick_Handler (priority set
+	 * in main.c, below the bus and timer interrupts). */
+	SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
 }
 
-/* Main loop: sends the CH1116 picture a step at a time. The SSD1306 is fed
- * by the circular DMA and needs nothing. */
-void SSD1306_Refresh(void)
+/* 1 ms, enabled only for the CH1116. The SSD1306 is fed by the circular
+ * DMA and needs nothing. */
+void SysTick_Handler(void)
 {
-	if (oled_ch1116) ch1116_poll();
+	if (oled_ch1116) ch1116_poll(CH1116_TICK_WAIT);
 }
 
 void SSD1306_Init(void)
